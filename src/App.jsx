@@ -2,8 +2,7 @@
 import React from 'react';
 import {observable, action, useStrict, computed, autorun} from 'mobx';
 import {observer} from 'mobx-react';
-import DevTools from 'mobx-react-devtools';
-
+import {Grid, Row, Col, PageHeader} from 'react-bootstrap';
 import {randomPiece} from './Pieces.jsx';
 
 useStrict(true)
@@ -19,26 +18,32 @@ useStrict(true)
 // data Pos = {x : Int, y: Int}
 // data Piece = {rotations: [[Pos]], color: String}
 
-// data Cell = null | Color   
+// data Cell = null | Color | "ghost"
 // type Field = [[Cell]]
 
 // Constants
 // --------------------------------------------------------------------------------
 
 // milliseconds per game tick (TODO: what if we run out of levels?)
-const lvlSpeeds       = [700, 550, 400, 316, 250, 200, 166, 133, 100, 83, 70, 60, 50, 40, 30, 20, 15, 10]
+const lvlSpeeds       = [700, 630, 560, 500, 450, 410, 370, 330, 300, 260, 220, 190, 150, 120, 90, 70, 50]
 const softDropSpeed   = 50
 
-const lvlIncreaseStep = 10 // in number of lines cleared
+const lvlIncreaseStep = 7 // in number of lines cleared
 
 // clearing score = (lvl + 1) * lineClearScores[number of lines cleared]
 const lineClearScores = [0, 40, 100, 300, 1200]
 
 const fieldWidth  = 10
-const fieldHeight = 20
+const fieldHeight = 21
 
 // starting position for each piece (this will cause them to be adjacent to the top of the field on start)
-const initPosition = {x:-1, y:4}
+const initPosition = {x:-1, y:3}
+
+const cellSizePx = 30 // in pixels
+
+const fieldWidthPx = cellSizePx * fieldWidth
+const fieldHeightPx = cellSizePx * fieldHeight
+
 
 // Pure functions
 // --------------------------------------------------------------------------------
@@ -67,13 +72,15 @@ const collides = (field, piece, {x, y}, rotation) => {
   return false;
 }
 
-// ghostPosition : Field -> Piece -> Pos -> Int -> Pos
+// ghostPosition : Field -> Piece -> Pos -> Int -> {position: Pos, drops: Int}
 const ghostPosition = (field, piece, pos, rotation) => {
   let pos2 = {x:pos.x, y:pos.y}
+  let drops = 0
   while (!collides(field, piece, moveDown(pos2), rotation)){
     pos2 = moveDown(pos2)
+    drops += 1
   }
-  return pos2
+  return {position: pos2, drops: drops}
 }
 
 // merge a piece to a field
@@ -106,9 +113,11 @@ class Game extends React.Component {
   @observable position 
   @observable nextPiece
 
-  @computed get level()    { return Math.floor(this.linesCleared/lvlIncreaseStep);}
-  @computed get baseSpeed(){ return lvlSpeeds[this.level] }
-  @computed get speed()    { return this.softDrop ? softDropSpeed : this.baseSpeed }
+  @computed get level()         { return Math.floor(this.linesCleared/lvlIncreaseStep);}
+  @computed get baseSpeed()     { return lvlSpeeds[this.level] }
+  @computed get speed()         { return this.softDrop ? softDropSpeed : this.baseSpeed }
+  @computed get ghostPosition() { return ghostPosition(this.field, this.piece, this.position, this.rotation)}
+  @computed get ghostPiece()    { return {rotations: this.piece.rotations, color: 'ghost'}}
 
   tickID;
   tickUpdater;
@@ -125,10 +134,10 @@ class Game extends React.Component {
   constructor(props){
     super(props)
     this.initGame()
-    this.initPiece()
   }
 
   @action initGame = () => {
+    window.focus()
     this.nextPiece = randomPiece()
     this.field = Array(fieldHeight).fill(Array(fieldWidth).fill(null))
     this.linesCleared = 0
@@ -145,7 +154,12 @@ class Game extends React.Component {
     })
   }
 
+  @action resetTickTimer = () => {
+    this.linesCleared = this.linesCleared;
+  }
+
   @action initPiece = () => {
+    this.resetTickTimer()
     this.piece = this.nextPiece
     this.nextPiece = randomPiece()
     this.rotation = 0
@@ -161,6 +175,7 @@ class Game extends React.Component {
     clearInterval(this.tickID)
     this.tickUpdater()
     alert('Game Over! Your score is ' + this.score.toString())
+    this.initGame()
   }
 
   @action finalizePiece = () => {
@@ -177,6 +192,9 @@ class Game extends React.Component {
     if (collides(this.field, this.piece, pos2, this.rotation)){
       this.finalizePiece()
     } else {
+      if (this.softDrop){
+        this.score += 1;
+      }
       this.position = pos2
     }
   }
@@ -203,7 +221,9 @@ class Game extends React.Component {
     if (e.key === "Shift"){
       this.softDrop = true
     } else if (e.key === " "){
-      this.position = ghostPosition(this.field, this.piece, this.position, this.rotation)
+      const gpos = this.ghostPosition
+      this.position = gpos.position
+      this.score += gpos.drops * 2
       this.finalizePiece()
     } else if (e.key === "ArrowLeft"){
       this.updatePosition(moveLeft(this.position))
@@ -214,11 +234,104 @@ class Game extends React.Component {
     } else if (e.key === "ArrowDown"){
       this.updateRotation(rotateLeft(this.piece, this.rotation))
     }
-  } 
+  }
+
+  @computed
+  get fieldSVG(){
+    const ghosty = mergePiece(this.field, this.ghostPiece, this.ghostPosition.position, this.rotation);
+    const merged = mergePiece(ghosty, this.piece, this.position, this.rotation);
+    let cellsSVG = []
+
+    for (let i = 0; i < fieldHeight; i++){
+      for (let j = 0; j < fieldWidth; j++){
+        const cell  = merged[i][j]
+        const color = cell === 'ghost' ? this.piece.color : cell ? cell : 'white'
+        cellsSVG.push(
+          <rect
+            x={j*cellSizePx}
+            y={i*cellSizePx}
+            key={j*fieldHeight + i} 
+            width={cellSizePx} 
+            height={cellSizePx}
+            style={{
+              'fill':color, 
+              'stroke':'gray', 
+              'strokeWidth': cell ? '1px' : '0px', 
+              'opacity': cell == 'ghost' ? 0.3 : 1}}
+          />)
+      }
+    }
+    return (
+      <svg width={fieldWidthPx} height={fieldHeightPx} style={{'border':'2px solid gray'}}>
+        {cellsSVG}
+      </svg>
+    )
+  }
+
+  @computed
+  get nextPieceSVG(){
+    const cellsSVG = this.nextPiece.rotations[0].map(({x, y}) => 
+      <rect
+        x={(y - 1)*cellSizePx}
+        y={x*cellSizePx}
+        key={y*4 + x} 
+        width={cellSizePx} 
+        height={cellSizePx}
+        style={{
+          'fill': this.nextPiece.color, 
+          'stroke':'gray', 
+          'strokeWidth': 'px'}}/>
+    )
+    return (
+      <svg width={4*cellSizePx} height={4*cellSizePx}>
+        {cellsSVG}
+      </svg>
+    )
+  }
 
   render = () => {
-    this.debugRender()
-    return (<div> hello world </div>)
+    return (
+      <Grid style={{'margin':'auto'}}>
+        <Row>
+          <Col md={5} lg={6}>
+            <PageHeader style={{'borderBottom':'solid 2px', 'borderBottomColor':'gray'}}> 
+              YATG <small> Yet another Tetris game </small>
+            </PageHeader>
+          </Col>
+        </Row>
+        <Row>
+          <Col md={4} lg={4}>
+            {this.fieldSVG}
+          </Col>
+
+          <Col md={2} lg={2}>
+            <Row>
+              <Col md={12} lg={12}>
+                <h3> Score: {this.score} </h3>
+              </Col>
+            </Row>
+            <Row>
+              <Col md={12} lg={12}>
+                <h3> Level: {this.level} </h3>
+              </Col>
+            </Row>
+            <Row>
+              <Col md={12} lg={12}>
+                {this.nextPieceSVG}
+              </Col>
+            </Row>
+            <Row>
+              <Col md={12} lg={12}>
+                <br/><br/><br/><br/><br/><br/>
+                <p> Shift: soft drop </p>
+                <p> Space: hard drop </p>
+                <p> Arrow keys: move & rotate </p>
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+      </Grid>
+    )
   }
 }
 
