@@ -28,7 +28,7 @@ useStrict(true)
 const lvlSpeeds       = [700, 630, 560, 500, 450, 410, 370, 330, 300, 260, 220, 190, 150, 120, 90, 70, 50]
 const softDropSpeed   = 50
 
-const lvlIncreaseStep = 7 // in number of lines cleared
+const lvlIncreaseStep = 6 // in number of lines cleared
 
 // clearing score = (lvl + 1) * lineClearScores[number of lines cleared]
 const lineClearScores = [0, 40, 100, 300, 1200]
@@ -39,7 +39,7 @@ const fieldHeight = 21
 // starting position for each piece (this will cause them to be adjacent to the top of the field on start)
 const initPosition = {x:-1, y:3}
 
-const cellSizePx = 30 // in pixels
+const cellSizePx = Math.floor((window.innerHeight * 0.75) / fieldHeight)
 
 const fieldWidthPx = cellSizePx * fieldWidth
 const fieldHeightPx = cellSizePx * fieldHeight
@@ -322,7 +322,7 @@ class Game extends React.Component {
             </Row>
             <Row>
               <Col md={12} lg={12}>
-                <br/><br/><br/><br/><br/><br/>
+                <br/>
                 <p> Shift: soft drop </p>
                 <p> Space: hard drop </p>
                 <p> Arrow keys: move & rotate </p>
