@@ -1,5 +1,5 @@
 # yatg
-...  yet another tetris with a bunch of javascript tech.
+...  yet another tetris game with a bunch of javascript tech.
 
 Playable on andraskovacs.github.io/tetris
 
