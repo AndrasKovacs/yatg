@@ -257,7 +257,7 @@ class Game extends React.Component {
               'fill':color, 
               'stroke':'gray', 
               'strokeWidth': cell ? '1px' : '0px', 
-              'opacity': cell == 'ghost' ? 0.3 : 1}}
+              'opacity': cell == 'ghost' ? 0.45 : 1}}
           />)
       }
     }
