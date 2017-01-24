@@ -1,5 +1,5 @@
 # yatg
-...  yet another tetris game with a bunch of javascript tech.
+...  yet another tetris game with a bunch of javascript tech (react, mobx, bootstrap, ES6)
 
 Playable on andraskovacs.github.io/tetris
 
