@@ -214,17 +214,17 @@ class Game extends React.Component {
   @action keyUpAction = e => {
     if (e.key === "Shift"){
       this.softDrop = false
+    } else if (e.key === " "){
+      const gpos = this.ghostPosition
+      this.position = gpos.position
+      this.score += gpos.drops * 2
+      this.finalizePiece()
     }
   }
 
   @action keyDownAction = e => {
     if (e.key === "Shift"){
       this.softDrop = true
-    } else if (e.key === " "){
-      const gpos = this.ghostPosition
-      this.position = gpos.position
-      this.score += gpos.drops * 2
-      this.finalizePiece()
     } else if (e.key === "ArrowLeft"){
       this.updatePosition(moveLeft(this.position))
     } else if (e.key === "ArrowRight"){
